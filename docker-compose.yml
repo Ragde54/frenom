@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: name_frequency_backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./prenoms-2025.parquet:/app/prenoms-2025.parquet:ro
+      - ./backend/app:/app/app
+    environment:
+      - PARQUET_PATH=/app/prenoms-2025.parquet
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: name_frequency_frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
