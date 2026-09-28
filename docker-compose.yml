@@ -1,11 +1,9 @@
-version: '3.8'
-
 services:
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: name_frequency_backend
+    container_name: frenom-backend
     ports:
       - "8000:8000"
     volumes:
@@ -19,7 +17,7 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    container_name: name_frequency_frontend
+    container_name: frenom-frontend
     ports:
       - "3000:80"
     depends_on:

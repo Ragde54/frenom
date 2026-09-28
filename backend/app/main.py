@@ -4,7 +4,7 @@ from typing import Optional, List
 from app.data_loader import search_names, get_name_time_series, get_top_names
 
 app = FastAPI(
-    title="French Name Frequency API",
+    title="Frénom — French Name Frequency API",
     description="High-performance API powered by DuckDB for 1900-2025 French name frequencies",
     version="1.0.0"
 )
@@ -21,7 +21,7 @@ app.add_middleware(
 def read_root():
     return {
         "status": "online",
-        "service": "French Historical Name Frequency API (1900-2025)",
+        "service": "Frénom API (1900-2025)",
         "docs": "/docs"
     }
 
@@ -31,7 +31,8 @@ def api_search_names(
     sexe: Optional[str] = Query(None, description="Gender filter: 1=Male, 2=Female"),
     limit: int = Query(15, ge=1, le=100)
 ):
-    results = search_names(query=q, sexe=sexe, limit=limit)
+    clean_sexe = sexe if sexe in ("1", "2") else None
+    results = search_names(query=q, sexe=clean_sexe, limit=limit)
     return {"query": q, "count": len(results), "results": results}
 
 @app.get("/api/names/stats")
@@ -40,15 +41,17 @@ def api_name_stats(
     sexe: Optional[str] = Query(None, description="Gender filter: 1=Male, 2=Female"),
     geo: str = Query("FRANCE", description="Geographic level: FRANCE, REG, DEP")
 ):
+    clean_sexe = sexe if sexe in ("1", "2") else None
     name_list = [n.strip() for n in names.split(",") if n.strip()]
-    data = get_name_time_series(names=name_list, sexe=sexe, geo_level=geo)
-    return {"names": name_list, "sexe": sexe, "geo": geo, "data": data}
+    data = get_name_time_series(names=name_list, sexe=clean_sexe, geo_level=geo)
+    return {"names": name_list, "sexe": clean_sexe, "geo": geo, "data": data}
 
 @app.get("/api/rankings/top")
 def api_top_names(
     year: int = Query(2025, ge=1900, le=2025),
-    sexe: str = Query("1", description="1=Male, 2=Female"),
-    limit: int = Query(50, ge=1, le=100)
+    sexe: Optional[str] = Query(None, description="1=Male, 2=Female, empty for Both"),
+    limit: int = Query(10, ge=1, le=100)
 ):
-    rankings = get_top_names(year=year, sexe=sexe, limit=limit)
-    return {"year": year, "sexe": sexe, "rankings": rankings}
+    clean_sexe = sexe if sexe in ("1", "2") else None
+    rankings = get_top_names(year=year, sexe=clean_sexe, limit=limit)
+    return {"year": year, "sexe": clean_sexe, "rankings": rankings}

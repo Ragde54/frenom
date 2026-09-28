@@ -1,5 +1,5 @@
 [project]
-name = "name-frequency-backend"
+name = "frenom-backend"
 version = "0.1.0"
 description = "FastAPI backend using DuckDB to query 6.6M French baby name records"
 readme = "README.md"

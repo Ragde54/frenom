@@ -85,6 +85,11 @@ body {
 }
 
 /* Control Panel */
+.control-panel {
+  position: relative;
+  z-index: 100;
+}
+
 .control-row {
   display: flex;
   gap: 1rem;
@@ -95,6 +100,7 @@ body {
   position: relative;
   flex: 1;
   min-width: 280px;
+  z-index: 110;
 }
 
 .search-icon {
@@ -103,6 +109,7 @@ body {
   top: 50%;
   transform: translateY(-50%);
   color: var(--text-muted);
+  z-index: 120;
 }
 
 .search-input {
@@ -129,12 +136,12 @@ body {
   left: 0;
   right: 0;
   background: #0f172a;
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.18);
   border-radius: 0.75rem;
   max-height: 280px;
   overflow-y: auto;
-  z-index: 50;
-  box-shadow: 0 12px 28px rgba(0,0,0,0.6);
+  z-index: 1000;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.8);
 }
 
 .suggestion-item {
@@ -347,10 +354,32 @@ body {
   min-width: 45px;
 }
 
+.leaderboard-columns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 1.5rem;
+}
+
+.gender-leaderboard-col {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.col-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  padding-bottom: 0.35rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.col-title.male { color: #60a5fa; }
+.col-title.female { color: #f472b6; }
+
 .leaderboard-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 1rem;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 0.75rem;
 }
 
 .rank-card {
@@ -360,22 +389,30 @@ body {
   background: rgba(30, 41, 59, 0.5);
   border: 1px solid rgba(255, 255, 255, 0.05);
   border-radius: 0.75rem;
-  padding: 0.85rem 1rem;
+  padding: 0.75rem 0.9rem;
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
-.rank-card:hover {
+.male-card:hover {
   background: rgba(59, 130, 246, 0.15);
-  border-color: rgba(59, 130, 246, 0.3);
+  border-color: rgba(59, 130, 246, 0.35);
+  transform: translateY(-2px);
+}
+
+.female-card:hover {
+  background: rgba(236, 72, 153, 0.15);
+  border-color: rgba(236, 72, 153, 0.35);
   transform: translateY(-2px);
 }
 
 .rank-number {
-  font-size: 1.2rem;
+  font-size: 1.15rem;
   font-weight: 800;
-  color: var(--accent-cyan);
 }
+
+.male-rank { color: #60a5fa; }
+.female-rank { color: #f472b6; }
 
 .rank-info {
   display: flex;
@@ -388,6 +425,6 @@ body {
 }
 
 .rank-births {
-  font-size: 0.8rem;
+  font-size: 0.775rem;
   color: var(--text-muted);
 }

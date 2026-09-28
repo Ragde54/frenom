@@ -1,10 +1,13 @@
-FROM astral-sh/uv:python3.11-bookworm-slim
+FROM python:3.11-slim
+
+# Copy uv binary from official image
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
 WORKDIR /app
 
 ENV UV_COMPILE_BYTECODE=1
 
-COPY pyproject.toml .
+COPY pyproject.toml README.md ./
 
 RUN uv sync --no-cache
 

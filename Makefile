@@ -3,7 +3,7 @@
 # Default command showing available targets
 help:
 	@echo "======================================================================"
-	@echo " 🇫🇷 French Name Frequency Explorer - Makefile Commands"
+	@echo " 🇫🇷 Frénom — French Name Frequency Explorer - Makefile Commands"
 	@echo "======================================================================"
 	@echo "  make install        - Install backend (uv) and frontend (npm) dependencies"
 	@echo "  make dev-backend    - Run FastAPI backend locally with uv"

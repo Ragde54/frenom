@@ -14,7 +14,6 @@ def get_connection() -> duckdb.DuckDBPyConnection:
     global _conn
     if _conn is None:
         _conn = duckdb.connect(database=":memory:", read_only=False)
-        # Register parquet file as a view for instant queries
         _conn.execute(f"CREATE VIEW IF NOT EXISTS prenoms AS SELECT * FROM '{PARQUET_PATH}'")
     return _conn
 
@@ -22,7 +21,11 @@ def search_names(query: str, sexe: Optional[str] = None, limit: int = 15) -> Lis
     conn = get_connection()
     clean_query = query.strip().upper()
     
-    where_clauses = ["prenom LIKE ?"]
+    where_clauses = [
+        "prenom LIKE ?",
+        "prenom != '_PRENOMS_RARES'",
+        "TRY_CAST(periode AS INTEGER) IS NOT NULL"
+    ]
     params: list = [f"%{clean_query}%"]
     
     if sexe in ("1", "2"):
@@ -40,7 +43,6 @@ def search_names(query: str, sexe: Optional[str] = None, limit: int = 15) -> Lis
             MAX(periode) as last_year
         FROM prenoms
         {where_sql}
-        AND TRY_CAST(periode AS INTEGER) IS NOT NULL
         GROUP BY prenom, sexe
         ORDER BY total_births DESC
         LIMIT {limit}
@@ -105,17 +107,36 @@ def get_name_time_series(names: List[str], sexe: Optional[str] = None, geo_level
         for row in result
     ]
 
-def get_top_names(year: int, sexe: str = "1", limit: int = 50) -> List[Dict[str, Any]]:
+def get_top_names(year: int, sexe: Optional[str] = None, limit: int = 10) -> List[Dict[str, Any]]:
     conn = get_connection()
-    sql = """
-        SELECT prenom, sexe, valeur as births, rang
+    where_clauses = [
+        "periode = ?",
+        "niveau_geographique = 'FRANCE'",
+        "prenom != '_PRENOMS_RARES'"
+    ]
+    params: list = [str(year)]
+    
+    if sexe in ("1", "2"):
+        where_clauses.append("sexe = ?")
+        params.append(sexe)
+        
+    where_sql = " WHERE " + " AND ".join(where_clauses)
+    
+    sql = f"""
+        SELECT prenom, sexe, SUM(valeur) as births
         FROM prenoms
-        WHERE periode = ? AND sexe = ? AND niveau_geographique = 'FRANCE'
-        ORDER BY rang ASC
-        LIMIT ?
+        {where_sql}
+        GROUP BY prenom, sexe
+        ORDER BY births DESC
+        LIMIT {limit}
     """
-    result = conn.execute(sql, [str(year), sexe, limit]).fetchall()
+    result = conn.execute(sql, params).fetchall()
     return [
-        {"rank": row[3], "prenom": row[0], "sexe": row[1], "births": int(row[2])}
-        for row in result
+        {
+            "rank": idx + 1,
+            "prenom": row[0],
+            "sexe": row[1],
+            "births": int(row[2])
+        }
+        for idx, row in enumerate(result)
     ]

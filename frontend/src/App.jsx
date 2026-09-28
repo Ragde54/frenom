@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -10,8 +10,8 @@ import {
   Legend,
   Filler
 } from 'chart.js';
-import { Line } from 'react_chartjs_2';
-import { Search, X, TrendingUp, Award, Users, Filter, Sparkles, Download } from 'lucide-react';
+import { Line } from 'react-chartjs-2';
+import { Search, X, TrendingUp, Award, Sparkles } from 'lucide-react';
 
 ChartJS.register(
   CategoryScale,
@@ -37,13 +37,29 @@ export default function App() {
   const [searchTerm, setSearchTerm] = useState('');
   const [suggestions, setSuggestions] = useState([]);
   const [selectedNames, setSelectedNames] = useState(['GABRIEL', 'MARIE']);
-  const [gender, setGender] = useState('1'); // '1'=Male, '2'=Female, ''=All
+  const [gender, setGender] = useState('1'); // '1'=Male, '2'=Female, ''=Both
   const [metric, setMetric] = useState('births'); // 'births' or 'rank'
   const [timeSeriesData, setTimeSeriesData] = useState([]);
-  const [topRankings, setTopRankings] = useState([]);
+  
+  // Dual top 10 states for Boys & Girls
+  const [topBoys, setTopBoys] = useState([]);
+  const [topGirls, setTopGirls] = useState([]);
+  
   const [selectedYear, setSelectedYear] = useState(2025);
   const [loading, setLoading] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const searchRef = React.useRef(null);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (searchRef.current && !searchRef.current.contains(event.target)) {
+        setIsDropdownOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   // Fetch search autocomplete
   useEffect(() => {
@@ -52,19 +68,25 @@ export default function App() {
       setIsDropdownOpen(false);
       return;
     }
+    const controller = new AbortController();
     const timer = setTimeout(async () => {
       try {
-        const res = await fetch(`/api/search?q=${encodeURIComponent(searchTerm)}&sexe=${gender}&limit=10`);
+        const res = await fetch(`/api/search?q=${encodeURIComponent(searchTerm)}&sexe=${gender}&limit=10`, {
+          signal: controller.signal
+        });
         if (res.ok) {
           const json = await res.json();
           setSuggestions(json.results || []);
           setIsDropdownOpen(true);
         }
       } catch (err) {
-        console.error("Search error:", err);
+        if (err.name !== 'AbortError') console.error("Search error:", err);
       }
-    }, 250);
-    return () => clearTimeout(timer);
+    }, 200);
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
   }, [searchTerm, gender]);
 
   // Fetch time series data whenever selectedNames or gender changes
@@ -74,29 +96,45 @@ export default function App() {
       return;
     }
     setLoading(true);
+    const controller = new AbortController();
     const namesParam = selectedNames.join(',');
     const sexeParam = gender ? `&sexe=${gender}` : '';
-    fetch(`/api/names/stats?names=${encodeURIComponent(namesParam)}${sexeParam}`)
+    fetch(`/api/names/stats?names=${encodeURIComponent(namesParam)}${sexeParam}`, {
+      signal: controller.signal
+    })
       .then(res => res.json())
       .then(data => {
         setTimeSeriesData(data.data || []);
         setLoading(false);
       })
       .catch(err => {
-        console.error("Stats fetch error:", err);
-        setLoading(false);
+        if (err.name !== 'AbortError') {
+          console.error("Stats fetch error:", err);
+          setLoading(false);
+        }
       });
+
+    return () => controller.abort();
   }, [selectedNames, gender]);
 
-  // Fetch top 10 rankings for selected year
+  // Fetch top 10 Boys & Girls rankings for selected year
   useEffect(() => {
-    fetch(`/api/rankings/top?year=${selectedYear}&sexe=${gender || '1'}&limit=10`)
-      .then(res => res.json())
-      .then(data => {
-        setTopRankings(data.rankings || []);
+    const controller = new AbortController();
+
+    Promise.all([
+      fetch(`/api/rankings/top?year=${selectedYear}&sexe=1&limit=10`, { signal: controller.signal }).then(r => r.json()),
+      fetch(`/api/rankings/top?year=${selectedYear}&sexe=2&limit=10`, { signal: controller.signal }).then(r => r.json())
+    ])
+      .then(([boysData, girlsData]) => {
+        setTopBoys(boysData.rankings || []);
+        setTopGirls(girlsData.rankings || []);
       })
-      .catch(err => console.error(err));
-  }, [selectedYear, gender]);
+      .catch(err => {
+        if (err.name !== 'AbortError') console.error("Leaderboard fetch error:", err);
+      });
+
+    return () => controller.abort();
+  }, [selectedYear]);
 
   const addName = (name) => {
     const uppercase = name.toUpperCase();
@@ -213,7 +251,7 @@ export default function App() {
       <div className="card control-panel">
         <div className="control-row">
           {/* Autocomplete Search Bar */}
-          <div className="search-container">
+          <div className="search-container" ref={searchRef}>
             <Search className="search-icon" size={18} />
             <input
               type="text"
@@ -321,12 +359,12 @@ export default function App() {
         </div>
       </div>
 
-      {/* Leaderboard Card Section */}
+      {/* Leaderboard Card Section (Dual Columns for Boys & Girls) */}
       <div className="card leaderboard-card">
         <div className="leaderboard-header">
           <div className="chart-title">
             <Award size={20} className="title-icon" />
-            <h2>Top 10 Most Popular Names in {selectedYear}</h2>
+            <h2>Top 10 Names Leaderboard ({selectedYear})</h2>
           </div>
 
           <div className="year-selector">
@@ -342,20 +380,46 @@ export default function App() {
           </div>
         </div>
 
-        <div className="leaderboard-grid">
-          {topRankings.map((item) => (
-            <div
-              key={`${item.rank}-${item.prenom}`}
-              className="rank-card"
-              onClick={() => addName(item.prenom)}
-            >
-              <div className="rank-number">#{item.rank}</div>
-              <div className="rank-info">
-                <div className="rank-name">{item.prenom}</div>
-                <div className="rank-births">{item.births.toLocaleString()} births</div>
-              </div>
+        <div className="leaderboard-columns">
+          {/* Top 10 Boys */}
+          <div className="gender-leaderboard-col">
+            <h3 className="col-title male">👦 Top 10 Boys</h3>
+            <div className="leaderboard-grid">
+              {topBoys.map((item) => (
+                <div
+                  key={`boy-${item.rank}-${item.prenom}`}
+                  className="rank-card male-card"
+                  onClick={() => addName(item.prenom)}
+                >
+                  <div className="rank-number male-rank">#{item.rank}</div>
+                  <div className="rank-info">
+                    <div className="rank-name">{item.prenom}</div>
+                    <div className="rank-births">{item.births.toLocaleString()} births</div>
+                  </div>
+                </div>
+              ))}
             </div>
-          ))}
+          </div>
+
+          {/* Top 10 Girls */}
+          <div className="gender-leaderboard-col">
+            <h3 className="col-title female">👧 Top 10 Girls</h3>
+            <div className="leaderboard-grid">
+              {topGirls.map((item) => (
+                <div
+                  key={`girl-${item.rank}-${item.prenom}`}
+                  className="rank-card female-card"
+                  onClick={() => addName(item.prenom)}
+                >
+                  <div className="rank-number female-rank">#{item.rank}</div>
+                  <div className="rank-info">
+                    <div className="rank-name">{item.prenom}</div>
+                    <div className="rank-births">{item.births.toLocaleString()} births</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
     </div>
